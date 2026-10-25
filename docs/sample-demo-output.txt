@@ -1,0 +1,136 @@
+Layers the executor may run in parallel: [['T1'], ['T2', 'T3'], ['G1'], ['T4'], ['T5', 'T6'], ['T7'], ['G2']]
+
+==============================================================================
+SCENARIO 1 - GREENFIELD: requirement -> plan -> code -> real tests -> release
+==============================================================================
+   capabilities identified : ['shortening', 'analytics']
+   proposed components     : 5
+   status : awaiting_implementation_approval  (plan v1)
+   graph  : T1[x] T2[x] T3[x] G1[?] T4[ ] T5[ ] T6[ ] T7[ ] G2[ ]
+
+-> Human approves the implementation gate
+   status : awaiting_release_approval  (plan v1)
+   graph  : T1[x] T2[x] T3[x] G1[x] T4[x] T5[x] T6[x] T7[x] G2[?]
+   generated files         : ['pytest.ini', 'src/shortcode.py', 'tests/test_shortcode.py', 'src/click_counter.py', 'tests/test_click_counter.py']
+   real pytest run         : 7 passed
+   T5/T6 ran concurrently  : B4 == B4
+
+-> Human approves the release gate
+   status : release_ready  (plan v1)
+   graph  : T1[x] T2[x] T3[x] G1[x] T4[x] T5[x] T6[x] T7[x] G2[x]
+   engineering summary     : release/engineering-summary.md
+
+==============================================================================
+SCENARIO 2 - BROWNFIELD: real code analysis + dynamic re-planning
+==============================================================================
+   modules scanned (ast)   : 14
+   directly impacted       : ['app.api.urls', 'app.models.url', 'app.schemas.url', 'app.services.url_service']
+   transitively impacted   : ['app.main', 'app.models']
+   data flow example       : app.api.urls -> app.models.url
+   notes                   : expires_at already exists in the data model: no schema migration needed
+   status : awaiting_implementation_approval  (plan v1)
+   graph  : T1[x] T2[x] T3[x] G1[?] T4[ ] T5[ ] T6[ ] T7[ ] G2[ ]
+
+-> Upstream output changed: impact analysis (T2) is stale -> partial re-plan
+   invalidated : ['G1', 'G2', 'T2', 'T4', 'T5', 'T6', 'T7']
+   preserved   : ['T1', 'T3']  (reused, not recomputed)
+   status : awaiting_implementation_approval  (plan v2)
+   graph  : T1[x] T2[x] T3[x] G1[?] T4[ ] T5[ ] T6[ ] T7[ ] G2[ ]
+
+-> Product owner changes the requirement -> re-plan from T1
+   requirement : Add expiration only for newly created URLs; existing URLs must never expire
+   invalidated : ['G1', 'G2', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+   version     : 2 -> 3  | history entries kept: 4
+
+-> Human approves the implementation gate
+   status : awaiting_release_approval  (plan v3)
+   graph  : T1[x] T2[x] T3[x] G1[x] T4[x] T5[x] T6[x] T7[x] G2[?]
+
+-> Human approves the release gate
+   status : release_ready  (plan v3)
+   graph  : T1[x] T2[x] T3[x] G1[x] T4[x] T5[x] T6[x] T7[x] G2[x]
+
+==============================================================================
+SCENARIO 3 - AMBIGUOUS: the agent stops instead of guessing
+==============================================================================
+   status : awaiting_clarification  (plan v1)
+   graph  : T1[!] T2[ ] T3[ ] G1[ ] T4[ ] T5[ ] T6[ ] T7[ ] G2[ ]
+   ? What measurable latency target (for example p95 in ms) defines 'faster', and for which endpoint?
+   ? How is 'popular' defined (for example clicks within a time window)?
+   ? The requirement is very brief: what is the expected behaviour?
+
+-> Try to approve implementation while ambiguity is unresolved
+   refused: The implementation gate is not awaiting approval (workflow status: awaiting_clarification)
+
+-> Product owner answers with measurable criteria
+   capabilities now: ['caching', 'analytics']
+   status : awaiting_implementation_approval  (plan v2)
+   graph  : T1[x] T2[x] T3[x] G1[?] T4[ ] T5[ ] T6[ ] T7[ ] G2[ ]
+
+-> Human approves the implementation gate
+   status : awaiting_release_approval  (plan v2)
+   graph  : T1[x] T2[x] T3[x] G1[x] T4[x] T5[x] T6[x] T7[x] G2[?]
+
+-> Human approves the release gate
+   status : release_ready  (plan v2)
+   graph  : T1[x] T2[x] T3[x] G1[x] T4[x] T5[x] T6[x] T7[x] G2[x]
+
+==============================================================================
+SCENARIO 4 - RELIABILITY: retry, fallback, rollback, policy safe-stop
+==============================================================================
+
+-> 4a. Transient failure in T5 (1 injected) -> bounded retry recovers
+
+-> Human approves the implementation gate
+   status : awaiting_release_approval  (plan v1)
+   graph  : T1[x] T2[x] T3[x] G1[x] T4[x] T5[x] T6[x] T7[x] G2[?]
+   attempts=2 incident=recovered mttr=580.28 ms
+
+-> Human approves the release gate
+   status : release_ready  (plan v1)
+   graph  : T1[x] T2[x] T3[x] G1[x] T4[x] T5[x] T6[x] T7[x] G2[x]
+
+-> 4b. AI provider outage in T1 (every attempt fails) -> deterministic fallback
+   T1 resolved via: fallback -> deterministic (fallback)
+
+-> Human approves the implementation gate
+   status : awaiting_release_approval  (plan v1)
+   graph  : T1[x] T2[x] T3[x] G1[x] T4[x] T5[x] T6[x] T7[x] G2[?]
+
+-> Human approves the release gate
+   status : release_ready  (plan v1)
+   graph  : T1[x] T2[x] T3[x] G1[x] T4[x] T5[x] T6[x] T7[x] G2[x]
+
+-> 4c. Persistent failure in T5 -> retries exhausted -> checkpoint rollback -> safe-stop
+
+-> Human approves the implementation gate
+   status : safe_stopped_rolled_back  (plan v1)
+   graph  : T1[x] T2[x] T3[x] G1[x] T4[ ] T5[ ] T6[ ] T7[ ] G2[ ]
+   retries=2 rollbacks=1
+   workspace restored to checkpoint, files now: ['analysis/impact-analysis.json', 'analysis/policy-evaluation.json', 'analysis/requirements.json']
+   incident: rolled_back mttr=61.83 ms
+
+-> 4d. Requirement that asks an agent to deploy to production -> policy block
+   status : safe_stopped_policy  (plan v1)
+   graph  : T1[x] T2[x] T3[F] G1[ ] T4[ ] T5[ ] T6[ ] T7[ ] G2[ ]
+   reason: [POL-001] No autonomous production changes: Matched 'Deploy the redirect cache directly to production'
+   T3 attempts: 1 (non-retryable)
+
+==============================================================================
+EVIDENCE - reliability metrics and audit integrity
+==============================================================================
+   total_workflows             : 7
+   succeeded                   : 5
+   safe_stopped                : 2
+   success_rate_pct            : 71.43
+   retries                     : 5
+   fallbacks                   : 1
+   rollbacks                   : 1
+   replans                     : 3
+   mttr_ms                     : 234.8
+   mttr_ms_by_outcome          : {'fallback': 62.29, 'recovered': 580.28, 'rolled_back': 61.83}
+   avg_end_to_end_latency_ms   : 1072.51
+   avg_agent_execution_ms      : 455.15
+   audit chains verified      : 7/7
+
+Done in 7.9s. Artifacts are in <repo>/demo_output

@@ -1,0 +1,10 @@
+line-length = 100
+target-version = "py312"
+extend-exclude = ["workspaces", "demo_output"]
+
+[lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]  # line length is handled by `ruff format`
+
+[lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends"]

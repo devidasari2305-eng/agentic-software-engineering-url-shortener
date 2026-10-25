@@ -1,0 +1,13 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite:////app/data/urlshortener.db
+      WORKFLOW_DATABASE_URL: sqlite:////app/data/workflows.db
+      WORKSPACE_ROOT: /app/workspaces
+      BASE_URL: http://localhost:8000
+    volumes:
+      - ./data:/app/data
+      - ./workspaces:/app/workspaces
