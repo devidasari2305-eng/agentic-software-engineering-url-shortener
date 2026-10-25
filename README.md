@@ -109,6 +109,17 @@ demo.py                  End-to-end demonstration
 
 ---
 
+## Model and Data Separation
+
+I kept the application models, API contracts and orchestration models separate instead of placing everything in a single model file.
+
+- app/models/url.py contains the SQLAlchemy persistence models for ShortURL and ClickEvent.
+- app/schemas/url.py contains the API request and response contracts.
+- orchestrator/models.py contains the structured models used by the agentic workflow, including requirements, approvals, clarification and re-planning requests.
+- orchestrator/store.py contains the persistence structures used for workflow state and audit history.
+
+I chose this separation so that API contracts, database entities and orchestration state can evolve independently without tightly coupling the layers.
+
 # URL Shortener
 
 The URL shortener is the application used to demonstrate both greenfield and brownfield engineering scenarios.
